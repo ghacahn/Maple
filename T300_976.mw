@@ -1,0 +1,140 @@
+restart:
+with(plots):
+N := 9:
+h := 0.09:
+a := 18:
+b := 18:
+q0 := 0.87:
+R1 := 45.27:
+R2 := 45.27:
+E1 := 1.4*10^5: 
+E2 := 0.59*10^4: 
+mu12 := 0.29:
+mu21 := E2*mu12/E1:
+G12 := 0.55*10^4:
+G13 := 0.55*10^4:
+G23 := 0.33*10^4:
+Fx_plus := 1517:
+Fx_minus := -1599:
+Fy_plus := 46:
+Fy_minus := -253:
+Fxy := 41.4:
+A := 1:
+B := 1:
+Kx := 1/R1:
+Ky := 1/R2:
+W := sum(sum(Wij[i,j] * sin(Pi*x*i/a)*sin(Pi*y*j/b), j=1..sqrt(N)), i=1..sqrt(N)):
+U := sum(sum(Uij[i,j] * sin(Pi*x*i/a)*sin(Pi*y*j/b), j=1..sqrt(N)), i=1..sqrt(N)):
+V := sum(sum(Vij[i,j] * sin(Pi*x*i/a)*sin(Pi*y*j/b), j=1..sqrt(N)), i=1..sqrt(N)):
+q := q0*(x/a)*(1-y/b):
+P_x := 0:
+P_y := 0:
+W_dx := diff(W, x):
+W_dy := diff(W, y):
+U_dx := diff(U, x):
+U_dy := diff(U, y):
+V_dx := diff(V, x):
+V_dy := diff(V, y):
+A_dx := diff(A, x):
+A_dy := diff(A, y):
+B_dx := diff(B, x):
+B_dy := diff(B, y):
+Eps_x := 1/A * U_dx + 1/A/B * A_dy * V - Kx*W:
+Eps_y := 1/B * V_dy + 1/A/B * B_dx * U - Ky*W:
+gamma_xy := 1/A * V_dx + 1/B * U_dy - 1/A/B*(A_dy*U + B_dx*V):
+hi_1 := -1/A * diff((1/A * W_dx), x) - 1/A/B * A_dy*(1/B*W_dy):
+hi_2 := -1/B * diff((1/B * W_dy), y) - 1/A/B * B_dx*(1/A*W_dx):
+hi_12 := 1/2 *(-1/A * diff((1/B * W_dy), x) - 1/B * diff((1/A * W_dx), y) + 1/A/B *(A_dy * 1/A * W_dx + B_dx * 1/B * W_dy)):
+Eps_xz := Eps_x + z*hi_1:
+Eps_yz := Eps_y + z*hi_2:
+gamma_xyz := gamma_xy + 2*z*hi_12:
+sigma_x := E1*(Eps_xz + mu21*Eps_yz)/(1-mu12*mu21):
+sigma_y := E2*(Eps_yz + mu12*Eps_xz)/(1-mu12*mu21):
+tau_xy := G12*gamma_xyz:
+sigma_i := sqrt(sigma_x^2 - sigma_x*sigma_y + sigma_y^2 + 3*tau_xy^2):
+N_x := E1*h*(Eps_x + mu21*Eps_y)/(1-mu12*mu21):
+N_y := E2*h*(Eps_y + mu12*Eps_x)/(1-mu12*mu21):
+M_x := E1*h^3*(hi_1 + mu21*hi_2)/(12*(1-mu12*mu21)):
+M_y := E2*h^3*(hi_2 + mu12*hi_1)/(12*(1-mu12*mu21)):
+N_xy := G12*h*gamma_xy:
+N_yx := G12*h*gamma_xy:
+M_xy := 2*G12*hi_12*h^3/12:
+M_yx := 2*G12*hi_12*h^3/12:
+
+Es := 1/2*int(int((N_x*Eps_x + N_y*Eps_y + 1/2*(N_xy + N_yx)*gamma_xy + M_x*hi_1 + M_y*hi_2 + (M_xy + M_yx)*hi_12)*A*B, x=0..a), y=0..b) - int(int((q*W + P_x*U + P_y*V)*A*B, x=0..a), y=0..b):
+
+Wi_system := {}:
+k := 1:
+Wij_system := {}:
+Uij_system := {}:
+Vij_system := {}:
+for i from 1 to sqrt(N) do
+    for j from 1 to sqrt(N) do
+        Wi_system := Wi_system union {diff(Es, Wij[i, j]) = 0}:
+        Wij_system := Wij_system union {Wij[i,j]}:
+        Wi_system := Wi_system union {diff(Es, Uij[i, j]) = 0}:
+        Wij_system := Wij_system union {Uij[i,j]}:
+        Wi_system := Wi_system union {diff(Es, Vij[i, j]) = 0}:
+        Wij_system := Wij_system union {Vij[i,j]}:
+        k := k + 3:
+    end do:
+end do:
+system_res := solve(Wi_system, Wij_system):
+k := 1:
+for i from 1 to sqrt(N) do
+    for j from 1 to sqrt(N) do
+        U_res[i, j] := rhs(system_res[k]):
+        V_res[i, j] := rhs(system_res[k+N]): 
+        W_res[i, j] := rhs(system_res[k+2*N]):
+        k := k + 1:
+    end do:
+end do:
+
+W_Wi := subs(Wij=W_res, W):
+U_Ui := subs(Uij=U_res, U):
+V_Vi := subs(Vij=V_res, V):
+sigma_xx := subs(Wij=W_res, Uij=U_res, Vij=V_res, z=-h/2, sigma_x):
+sigma_yy := subs(Wij=W_res, Uij=U_res, Vij=V_res, z=-h/2, sigma_y):
+sigma_ii := subs(Wij=W_res, Uij=U_res, Vij=V_res, z=-h/2, sigma_i):
+tau_xy1 := subs(Wij=W_res, Uij=U_res, Vij=V_res, z=-h/2, tau_xy):
+W__c := evalf(subs(x=a/2, y=b/2, z=-h/2, W_Wi));
+W__4 := evalf(subs(x=a/4, y=b/4, z=-h/2,  W_Wi));
+U__c := evalf(subs(x=a/2, y=b/2, z=-h/2,  U_Ui));
+U__4 := evalf(subs(x=a/4, y=b/4, z=-h/2,  U_Ui));
+V__c := evalf(subs(x=a/2, y=b/2, z=-h/2,  V_Vi));
+V__4 := evalf(subs(x=a/4, y=b/4, z=-h/2,  V_Vi));
+sigma__xc := evalf(subs(x=a/2, y=b/2, sigma_xx));
+sigma__x4 := evalf(subs(x=a/4, y=b/4, sigma_xx));
+sigma__yc := evalf(subs(x=a/2, y=b/2, sigma_yy));
+sigma__y4 := evalf(subs(x=a/4, y=b/4, sigma_yy));
+tau_xyc := evalf(subs(x=a/2, y=b/2, tau_xy1));
+tau_xy4 := evalf(subs(x=a/4, y=b/4, tau_xy1));
+
+Tsai_Wu := (1/Fx_plus + 1/Fx_minus)*sigma_x + (1/Fy_plus + 1/Fy_minus)*sigma_y - sigma_x^2/(Fx_plus*Fx_minus) - sigma_y^2/(Fy_plus*Fy_minus) - 1/2 * sqrt(1/(Fx_plus*Fx_minus*Fy_plus*Fy_minus))*sigma_x*sigma_y + 1/(Fxy^2)*tau_xy^2:
+Kr_Tsai_Wu := subs(Wij=W_res, Uij=U_res, Vij=V_res, z=-h/2, Tsai_Wu):
+
+Hoffman := 1/2*(1/(Fy_plus*Fy_minus) - 1/(Fx_plus*Fx_minus))*sigma_x^2 + 1/2*(1/(Fx_plus*Fx_minus) - 1/(Fy_plus*Fy_minus))*sigma_y^2 + (1/Fx_plus + 1/Fx_minus)*sigma_x + (1/Fy_plus + 1/Fy_minus)*sigma_y - 1/2*(1/(Fy_plus*Fy_minus) + 1/(Fx_plus*Fx_minus))*(sigma_x - sigma_y)^2 + 1/(Fxy^2)*tau_xy^2:
+Kr_Hoffman := subs(Wij=W_res, Uij=U_res, Vij=V_res, z=-h/2, Hoffman):
+
+R := max(R1, R2) - min(R1, R2):
+r := min(R1, R2):
+X := (R + r*cos(x))*sin(y):
+Y := (R + r*cos(x))*cos(y):
+Z := r*sin(x):
+qc := evalf(subs(x=a/2, y=b/2, z=-h/2,  q)):
+
+display(plot([[0, 0], [0.8123, 13.21]], color=red), plot([[0, 0], [0.2340, 3.13]], color=green), plot([[0, 0], [0.0503, 0.87]], color=blue), plot([[0, 0], [0.0395, 0.80]]), labels=['W (м)', 'q (МПа)'], labelfont = [Times, 14], legend = ["N=1","N=4","N=9","N=16"]);
+
+display(plot([[0, 0], [0.0395, 0.80]], color=red), plot([[0, 0], [-0.1973, 0.80]]), labels=['W (м)', 'q (МПа)'], labelfont = [Times, 14], legend = ["Wc","W4"]);
+
+plot3d(q, x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'q (МПа)'], labelfont = [Times, 14], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d([Z, X, Y], x=-min(a, b)/(2*r)..min(a, b)/(2*r), y=-max(a, b)/(2*(R+r))..max(a, b)/(2*(R+r)), labels=['Y (m)', 'X (m)', 'Z (m)'], style=PATCHCONTOUR, colorscheme = ["zgradient", ["Red", "Orange"]], labelfont = [Times, 14]);
+
+plot3d(W_Wi, x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'W (м)'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d(U_Ui, x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'U (м)'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d(V_Vi, x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'V (м)'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d(sigma_xx, x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'sigma__x (МПа)'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d(sigma_yy, x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'sigma__y (МПа)'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d(sigma_ii, x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'sigma__i (МПа)'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d([Kr_Tsai_Wu, 1], x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'Tsai_Wu'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
+plot3d([Kr_Hoffman, 1], x=0..a, y=0..b, labels=['a (м)', 'b (м)', 'Hoffman'], labelfont = [Times, 26], colorscheme = ["zgradient", ["Red", "Orange"]]);
